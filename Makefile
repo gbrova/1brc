@@ -1,6 +1,10 @@
 build:
 	g++ -Wall -std=c++17 -g 1brc.cpp -o 1brc
 
+run:
+	# Remember to plug in your laptop!
+	./1brc
+
 
 test-approximate:
     # cheap test: if the diff is <10 lines long, the results are probably good enough.
