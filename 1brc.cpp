@@ -12,6 +12,13 @@
 
 #include <chrono>
 
+#include <stdio.h>
+#include <sys/mman.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 using namespace std;
 
 class Summary
@@ -52,7 +59,7 @@ void update(Summary &thisSummary, float tempf)
     }
 }
 
-int read_city(char city[], std::vector<char> &buffer, int start_pos)
+int read_city(char city[], char *buffer, int start_pos)
 {
     for (int i = start_pos; i < start_pos + 100; i++)
     {
@@ -70,7 +77,7 @@ int read_city(char city[], std::vector<char> &buffer, int start_pos)
     return -1;
 }
 
-std::tuple<int, int> read_number(std::vector<char> &buffer, int start_pos)
+std::tuple<int, int> read_number(char *buffer, int start_pos)
 {
     int tempf = 0;
     int sign = 1;
@@ -120,25 +127,41 @@ void save_temperature(char city[], int tempf, std::unordered_map<std::string, Su
     }
 }
 
+std::tuple<char *, std::size_t> mmap_file(char *filepath)
+{
+    int fd = open(filepath, O_RDONLY);
+    if (fd < 0)
+    {
+        printf("\n\"%s \" could not open\n", filepath);
+        exit(1);
+    }
+    struct stat statbuf;
+    int err = fstat(fd, &statbuf);
+    if (err < 0)
+    {
+        printf("\n\"%s \" could not open\n", filepath);
+        exit(2);
+    }
+
+    char *buffer = (char *)mmap(NULL, statbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (buffer == MAP_FAILED)
+    {
+        printf("Mapping Failed\n");
+        exit(2);
+    }
+
+    return {buffer, statbuf.st_size};
+}
+
 void do_the_work(char *filepath)
 {
     std::unordered_map<std::string, Summary> temps;
 
-    std::ifstream file(filepath, std::ios::binary | std::ios::ate);
-    std::streamsize size = file.tellg();
-    file.seekg(0, std::ios::beg);
-
-    std::vector<char> buffer(size);
-    if (file.read(buffer.data(), size))
-    {
-        /* worked! */
-    }
+    auto [buffer, size] = mmap_file(filepath);
     char city[100];
 
-    for (std::size_t i = 0; i < buffer.size(); i++)
+    for (std::size_t i = 0; i < size; i++)
     {
-        // only reading takes 12ms
-        // so reading+copying takes 24ms, which is about as good as we can do (we basically copy everything once).
         i = read_city(city, buffer, i);
         auto [ii, tempf] = read_number(buffer, i);
         i = ii;
