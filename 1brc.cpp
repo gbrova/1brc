@@ -52,13 +52,31 @@ void update(Summary &thisSummary, float tempf)
     }
 }
 
-int str_to_int(std::string line, int start_pos)
+int read_city(char city[], std::vector<char> &buffer, int start_pos)
+{
+    for (int i = start_pos; i < start_pos + 100; i++)
+    {
+        char c = buffer[i];
+        if (c == ';')
+        {
+            city[i - start_pos] = '\0';
+            return i + 1;
+        }
+        city[i - start_pos] = c;
+        // city[i - start_pos] = c;
+    }
+
+    // should not happen.
+    return -1;
+}
+
+std::tuple<int, int> read_number(std::vector<char> &buffer, int start_pos)
 {
     int tempf = 0;
     int sign = 1;
-    for (int i = start_pos; i < line.length(); i++)
+    for (int i = start_pos; i < start_pos + 100; i++)
     {
-        char c = line.at(i);
+        char c = buffer[i];
         if (c == '.')
         {
             continue;
@@ -68,46 +86,64 @@ int str_to_int(std::string line, int start_pos)
             sign = -1;
             continue;
         }
+        if (c == '\n')
+        {
+            tempf = tempf * sign;
+            return {i, tempf};
+        }
         int d = c - '0';
         tempf = tempf * 10 + d;
     }
-    return tempf * sign;
+
+    // should not happen.
+    return {-1, -1};
+}
+
+void save_temperature(char city[], int tempf, std::unordered_map<std::string, Summary> &temps)
+{
+    auto tuple = temps.find(city);
+
+    if (tuple == temps.end())
+    {
+        // not found
+        Summary thisSummary;
+        thisSummary.count = 1;
+        thisSummary.min = tempf;
+        thisSummary.max = tempf;
+        thisSummary.sum = tempf;
+        temps.insert(std::pair(city, thisSummary));
+    }
+    else
+    {
+        Summary &thisSummary = tuple->second;
+        update(thisSummary, tempf);
+    }
 }
 
 void do_the_work(char *filepath)
 {
-    std::ifstream infile(filepath);
-
     std::unordered_map<std::string, Summary> temps;
 
-    std::string line;
-    while (std::getline(infile, line))
+    std::ifstream file(filepath, std::ios::binary | std::ios::ate);
+    std::streamsize size = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    std::vector<char> buffer(size);
+    if (file.read(buffer.data(), size))
     {
-        std::string city;
-        std::string temp;
+        /* worked! */
+    }
+    char city[100];
 
-        // Lines are formatted as city;temperature
-        int split_pos = line.find(";");
+    for (std::size_t i = 0; i < buffer.size(); i++)
+    {
+        // only reading takes 12ms
+        // so reading+copying takes 24ms, which is about as good as we can do (we basically copy everything once).
+        i = read_city(city, buffer, i);
+        auto [ii, tempf] = read_number(buffer, i);
+        i = ii;
 
-        city = line.substr(0, split_pos);
-        int tempf = str_to_int(line, split_pos + 1);
-
-        auto tuple = temps.find(city);
-        if (tuple == temps.end())
-        {
-            // not found
-            Summary thisSummary;
-            thisSummary.count = 1;
-            thisSummary.min = tempf;
-            thisSummary.max = tempf;
-            thisSummary.sum = tempf;
-            temps.insert(std::pair(city, thisSummary));
-        }
-        else
-        {
-            Summary &thisSummary = tuple->second;
-            update(thisSummary, tempf);
-        }
+        save_temperature(city, tempf, temps);
     }
 
     aggregate(temps);
