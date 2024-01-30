@@ -12,3 +12,6 @@ test-approximate:
 	diffstr=$$(./1brc | sort | diff result_sorted_py.txt -); \
 	echo "$${diffstr}"; \
 	test $$(echo "$$diffstr" | wc -l) -le 10;
+
+profile:
+	rm callgrind.out.* ; valgrind --tool=callgrind ./1brc ; kcachegrind

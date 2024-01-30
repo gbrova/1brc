@@ -18,9 +18,9 @@ class Summary
 {
 public:
     int count;
-    float sum;
-    float min;
-    float max;
+    int sum;
+    int min;
+    int max;
 };
 
 void aggregate(std::unordered_map<std::string, Summary> &temps)
@@ -28,9 +28,11 @@ void aggregate(std::unordered_map<std::string, Summary> &temps)
     // For simplicity/laziness, we're not sorting the result. But the time taken to sort ~400 rows is trivial, so ignore it for now.
     for (const auto &[city, thisSummary] : temps)
     {
-        float avg = thisSummary.sum / thisSummary.count;
+        float min = (float)thisSummary.min / 10;
+        float max = (float)thisSummary.max / 10;
+        float avg = (float)thisSummary.sum / thisSummary.count / 10;
 
-        fmt::print("{}={:.1f}/{:.1f}/{:.1f}\n", city, thisSummary.min, thisSummary.max, avg);
+        fmt::print("{}={:.1f}/{:.1f}/{:.1f}\n", city, min, max, avg);
     }
 }
 
@@ -50,8 +52,26 @@ void update(Summary &thisSummary, float tempf)
     }
 }
 
-void parse_line(std::string line)
+int str_to_int(std::string line, int start_pos)
 {
+    int tempf = 0;
+    int sign = 1;
+    for (int i = start_pos; i < line.length(); i++)
+    {
+        char c = line.at(i);
+        if (c == '.')
+        {
+            continue;
+        }
+        if (c == '-')
+        {
+            sign = -1;
+            continue;
+        }
+        int d = c - '0';
+        tempf = tempf * 10 + d;
+    }
+    return tempf * sign;
 }
 
 void do_the_work(char *filepath)
@@ -70,9 +90,7 @@ void do_the_work(char *filepath)
         int split_pos = line.find(";");
 
         city = line.substr(0, split_pos);
-        temp = line.substr(split_pos + 1);
-
-        float tempf = std::stof(temp);
+        int tempf = str_to_int(line, split_pos + 1);
 
         auto tuple = temps.find(city);
         if (tuple == temps.end())
