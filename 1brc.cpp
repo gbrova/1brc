@@ -317,7 +317,7 @@ int main()
     cout << "combined_results has size " << combined_results.size() << endl;
 
     // This prints ~400 lines and can be noisy; maybe comment it out.
-    // aggregate(combined_results);
+    aggregate(combined_results);
 
     auto stop = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
