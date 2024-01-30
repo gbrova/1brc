@@ -30,20 +30,23 @@ public:
     int max;
 };
 
+const int CITY_LENGTH = 32;
+
 class City
 {
 
 public:
-    std::string city;
+    int size;
+    char city[CITY_LENGTH];
 
     City(char city_c[])
     {
-        city = std::string(city_c);
+        memcpy(city, city_c, CITY_LENGTH);
     }
 
     bool operator==(const City &other) const
     {
-        return (city == other.city);
+        return 0 == memcmp(city, other.city, CITY_LENGTH);
     }
 };
 
@@ -54,7 +57,24 @@ namespace std
     {
         size_t operator()(const City &city) const
         {
-            return std::hash<std::string>()(city.city);
+            // Note: I tried several different hash functions, doesn't seem to make a big difference (except for the first, which is bad).
+
+            // Using this hash function takes ~300ms total.
+            // return city.city[0] << 24 + city.city[1] << 16 + city.city[2] << 8 + city.city[3];
+
+            // Using this hash function takes ~32ms total.  (note the parens!)
+            return (city.city[0] << 24) + (city.city[1] << 16) + (city.city[2] << 8) + city.city[3];
+
+            // Using this hash function takes ~33ms total. (different primes)
+            // return city.city[0] * 977 * 1129 * 983 + city.city[1] * 727 * 1129 + city.city[2] * 727 + city.city[3];
+
+            // Using this hash function takes ~33ms total. (see justification at http://stackoverflow.com/a/1646913/126995)
+            // int res = 17;
+            // res = res * 31 + city.city[0];
+            // res = res * 31 + city.city[1];
+            // res = res * 31 + city.city[2];
+            // res = res * 31 + city.city[3];
+            // return res;
         }
     };
 }
@@ -90,6 +110,7 @@ void update(Summary &thisSummary, float tempf)
 
 int read_city(char city[], char *buffer, int start_pos)
 {
+    memset(city, 0, CITY_LENGTH);
     for (int i = start_pos; i < start_pos + 100; i++)
     {
         char c = buffer[i];
@@ -189,7 +210,7 @@ void do_the_work(char *filepath)
     std::unordered_map<City, Summary> temps;
 
     auto [buffer, size] = mmap_file(filepath);
-    char city[100];
+    char city[CITY_LENGTH];
 
     for (std::size_t i = 0; i < size; i++)
     {
