@@ -74,7 +74,8 @@ void do_the_work(char *filepath)
 
         float tempf = std::stof(temp);
 
-        if (temps.find(city) == temps.end())
+        auto tuple = temps.find(city);
+        if (tuple == temps.end())
         {
             // not found
             Summary thisSummary;
@@ -86,7 +87,7 @@ void do_the_work(char *filepath)
         }
         else
         {
-            Summary &thisSummary = temps.find(city)->second;
+            Summary &thisSummary = tuple->second;
             update(thisSummary, tempf);
         }
     }
