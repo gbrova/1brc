@@ -66,8 +66,6 @@ void do_the_work(char *filepath)
     std::string line;
     while (std::getline(infile, line))
     {
-        std::istringstream iss(line);
-
         std::string city;
         std::string temp;
 
