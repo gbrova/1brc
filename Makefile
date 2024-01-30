@@ -1,5 +1,5 @@
 build:
-	g++ -Wall -std=c++17 -g 1brc.cpp -o 1brc
+	g++ -Wall -std=c++17 -O2 -g 1brc.cpp -o 1brc
 
 run:
 	# Remember to plug in your laptop!
