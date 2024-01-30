@@ -14,4 +14,5 @@ test-approximate:
 	test $$(echo "$$diffstr" | wc -l) -le 10;
 
 profile:
+	g++ -Wall -std=c++17 -O1 -g 1brc.cpp -o 1brc  # NOTE: fow now, use -O1 to make it easier to read (!?)
 	rm callgrind.out.* ; valgrind --tool=callgrind ./1brc ; kcachegrind

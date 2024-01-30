@@ -30,7 +30,36 @@ public:
     int max;
 };
 
-void aggregate(std::unordered_map<std::string, Summary> &temps)
+class City
+{
+
+public:
+    std::string city;
+
+    City(char city_c[])
+    {
+        city = std::string(city_c);
+    }
+
+    bool operator==(const City &other) const
+    {
+        return (city == other.city);
+    }
+};
+
+namespace std
+{
+    template <>
+    struct hash<City>
+    {
+        size_t operator()(const City &city) const
+        {
+            return std::hash<std::string>()(city.city);
+        }
+    };
+}
+
+void aggregate(std::unordered_map<City, Summary> &temps)
 {
     // For simplicity/laziness, we're not sorting the result. But the time taken to sort ~400 rows is trivial, so ignore it for now.
     for (const auto &[city, thisSummary] : temps)
@@ -39,7 +68,7 @@ void aggregate(std::unordered_map<std::string, Summary> &temps)
         float max = (float)thisSummary.max / 10;
         float avg = (float)thisSummary.sum / thisSummary.count / 10;
 
-        fmt::print("{}={:.1f}/{:.1f}/{:.1f}\n", city, min, max, avg);
+        fmt::print("{}={:.1f}/{:.1f}/{:.1f}\n", city.city, min, max, avg);
     }
 }
 
@@ -106,9 +135,11 @@ std::tuple<int, int> read_number(char *buffer, int start_pos)
     return {-1, -1};
 }
 
-void save_temperature(char city[], int tempf, std::unordered_map<std::string, Summary> &temps)
+void save_temperature(char city[], int tempf, std::unordered_map<City, Summary> &temps)
 {
-    auto tuple = temps.find(city);
+    // TODO: change this std::string into a char*, maybe using ideas from https://stackoverflow.com/questions/20649864/c-unordered-map-with-char-as-key.
+    auto city_cls = City(city);
+    auto tuple = temps.find(city_cls);
 
     if (tuple == temps.end())
     {
@@ -118,7 +149,7 @@ void save_temperature(char city[], int tempf, std::unordered_map<std::string, Su
         thisSummary.min = tempf;
         thisSummary.max = tempf;
         thisSummary.sum = tempf;
-        temps.insert(std::pair(city, thisSummary));
+        temps.insert(std::pair(city_cls, thisSummary));
     }
     else
     {
@@ -155,7 +186,7 @@ std::tuple<char *, std::size_t> mmap_file(char *filepath)
 
 void do_the_work(char *filepath)
 {
-    std::unordered_map<std::string, Summary> temps;
+    std::unordered_map<City, Summary> temps;
 
     auto [buffer, size] = mmap_file(filepath);
     char city[100];
