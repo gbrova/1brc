@@ -7,6 +7,9 @@
 #include <fstream>
 #include <map>
 
+#include <thread>
+#include <future>
+
 #define FMT_HEADER_ONLY
 #include <fmt/format.h>
 
@@ -111,7 +114,7 @@ void update(Summary &thisSummary, float tempf)
 int read_city(char city[], char *buffer, int start_pos)
 {
     memset(city, 0, CITY_LENGTH);
-    for (int i = start_pos; i < start_pos + 100; i++)
+    for (int i = start_pos;; i++)
     {
         char c = buffer[i];
         if (c == ';')
@@ -131,7 +134,7 @@ std::tuple<int, int> read_number(char *buffer, int start_pos)
 {
     int tempf = 0;
     int sign = 1;
-    for (int i = start_pos; i < start_pos + 100; i++)
+    for (int i = start_pos;; i++)
     {
         char c = buffer[i];
         if (c == '.')
@@ -205,14 +208,26 @@ std::tuple<char *, std::size_t> mmap_file(char *filepath)
     return {buffer, statbuf.st_size};
 }
 
-void do_the_work(char *filepath)
+std::unordered_map<City, Summary> parse_section(char *buffer, std::size_t start, std::size_t end, std::size_t overshoot)
 {
+    char city[CITY_LENGTH];
     std::unordered_map<City, Summary> temps;
 
-    auto [buffer, size] = mmap_file(filepath);
-    char city[CITY_LENGTH];
+    // If we're in the middle of a line, advance to the next full line.
+    if (start != 0 && buffer[start - 1] != '\n')
+    {
+        while (true)
+        {
+            if (buffer[start] == '\n')
+            {
+                start++;
+                break;
+            }
+            start++;
+        }
+    }
 
-    for (std::size_t i = 0; i < size; i++)
+    for (std::size_t i = start; i < end; i++)
     {
         i = read_city(city, buffer, i);
         auto [ii, tempf] = read_number(buffer, i);
@@ -221,7 +236,62 @@ void do_the_work(char *filepath)
         save_temperature(city, tempf, temps);
     }
 
-    aggregate(temps);
+    return temps;
+}
+
+std::unordered_map<City, Summary> combine_results(std::unordered_map<City, Summary> results[], int n_threads)
+{
+    std::unordered_map<City, Summary> combined;
+    for (int i = 0; i < n_threads; i++)
+    {
+        for (const auto &[city, this_summary] : results[i])
+        {
+            auto tuple = combined.find(city);
+
+            if (tuple == combined.end())
+            {
+                combined.insert(std::pair(city, this_summary));
+            }
+            else
+            {
+                Summary &combined_summary = tuple->second;
+                combined_summary.max = max(combined_summary.max, this_summary.max);
+                combined_summary.min = min(combined_summary.min, this_summary.min);
+                combined_summary.count = combined_summary.count + this_summary.count;
+                combined_summary.sum = combined_summary.sum + this_summary.sum;
+            }
+        }
+    }
+    return combined;
+}
+
+void do_the_work(char *filepath)
+{
+    auto [buffer, size] = mmap_file(filepath);
+
+    const int n_threads = 4;
+    std::future<std::unordered_map<City, Summary>> promises[n_threads];
+    std::unordered_map<City, Summary> results[n_threads];
+
+    int stepsize = size / n_threads;
+    for (int i = 0; i < n_threads; i++)
+    {
+        std::size_t overshoot = 100;
+        if (i == n_threads - 1)
+        {
+            overshoot = 0;
+        }
+        promises[i] = std::async(std::launch::async, parse_section, buffer, i * stepsize, (i + 1) * stepsize, overshoot);
+    }
+
+    // aggregate
+    for (int i = 0; i < n_threads; i++)
+    {
+        results[i] = promises[i].get();
+    }
+
+    auto combined_results = combine_results(results, n_threads);
+    aggregate(combined_results);
 }
 
 int main()
