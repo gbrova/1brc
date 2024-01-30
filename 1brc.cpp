@@ -23,14 +23,11 @@ public:
     float max;
 };
 
-void aggregate(std::map<std::string, Summary> &temps)
+void aggregate(std::unordered_map<std::string, Summary> &temps)
 {
     // For simplicity/laziness, we're not sorting the result. But the time taken to sort ~400 rows is trivial, so ignore it for now.
-    for (std::map<std::string, Summary>::iterator iter = temps.begin(); iter != temps.end(); ++iter)
+    for (const auto &[city, thisSummary] : temps)
     {
-        std::string city = iter->first;
-        Summary thisSummary = iter->second;
-
         float avg = thisSummary.sum / thisSummary.count;
 
         fmt::print("{}={:.1f}/{:.1f}/{:.1f}\n", city, thisSummary.min, thisSummary.max, avg);
@@ -61,7 +58,7 @@ void do_the_work(char *filepath)
 {
     std::ifstream infile(filepath);
 
-    std::map<std::string, Summary> temps;
+    std::unordered_map<std::string, Summary> temps;
 
     std::string line;
     while (std::getline(infile, line))
