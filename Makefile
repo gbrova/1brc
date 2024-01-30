@@ -1,0 +1,10 @@
+build:
+	g++ -Wall -std=c++17 -g 1brc.cpp -o 1brc
+
+
+test-approximate:
+    # cheap test: if the diff is <10 lines long, the results are probably good enough.
+	# Do this approximate testing because I want to ignore small amounts of output etc.
+	diffstr=$$(./1brc | sort | diff result_sorted_py.txt -); \
+	echo "$${diffstr}"; \
+	test $$(echo "$$diffstr" | wc -l) -le 10;
